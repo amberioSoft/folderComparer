@@ -1,0 +1,148 @@
+<Application x:Class="FolderDiff.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inf="clr-namespace:FolderDiff.Infrastructure">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/VisualStudio.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+        <SolidColorBrush x:Key="ChromeBrush" Color="#F6F8FA" />
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="BorderLineBrush" Color="#D0D7DE" />
+        <SolidColorBrush x:Key="GutterBrush" Color="#EFF2F5" />
+        <SolidColorBrush x:Key="LineNumberBrush" Color="#8C959F" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#6E7781" />
+
+        <SolidColorBrush x:Key="LineAddedBrush" Color="#E6FFEC" />
+        <SolidColorBrush x:Key="LineDeletedBrush" Color="#FFEBE9" />
+        <SolidColorBrush x:Key="LineFillerBrush" Color="#FAFBFC" />
+        <SolidColorBrush x:Key="WordAddedBrush" Color="#A7F0BA" />
+        <SolidColorBrush x:Key="WordDeletedBrush" Color="#FFC9C6" />
+
+        <SolidColorBrush x:Key="StatusAddedBrush" Color="#1A7F37" />
+        <SolidColorBrush x:Key="StatusDeletedBrush" Color="#CF222E" />
+        <SolidColorBrush x:Key="StatusModifiedBrush" Color="#9A6700" />
+        <SolidColorBrush x:Key="StatusUnchangedBrush" Color="#8C959F" />
+
+        <inf:DiffLineBrushConverter x:Key="DiffLineBrush" />
+        <inf:StatusBrushConverter x:Key="StatusBrush" />
+        <inf:BoolToVisibilityConverter x:Key="BoolToVisible" />
+        <inf:BoolToVisibilityConverter x:Key="BoolToHidden" Invert="True" />
+        <inf:InverseBooleanConverter x:Key="InverseBool" />
+        <inf:EnumMatchConverter x:Key="EnumMatch" />
+        <inf:AutoNumberConverter x:Key="AutoNumber" />
+        <inf:CheckMarkConverter x:Key="CheckMark" />
+        <inf:NotNullToVisibilityConverter x:Key="NotNullToVisible" />
+        <inf:EmptyStringToVisibilityConverter x:Key="TextToVisible" />
+        <inf:BoolToBrushConverter x:Key="OkBrush" />
+        <inf:PixelWidthConverter x:Key="PixelWidth" />
+        <inf:AutoWidthConverter x:Key="AutoWidth" />
+        <inf:EnumVisibilityConverter x:Key="EnumVisible" />
+
+        <SolidColorBrush x:Key="SplitterBrush" Color="#E3E7EB" />
+        <SolidColorBrush x:Key="SplitterHoverBrush" Color="#9BB4D4" />
+
+        <Style x:Key="PaneSplitter" TargetType="GridSplitter">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="ResizeDirection" Value="Columns" />
+            <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+            <Setter Property="Cursor" Value="SizeWE" />
+            <Setter Property="Background" Value="{StaticResource SplitterBrush}" />
+            <Setter Property="ShowsPreview" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}">
+                            <Rectangle Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                       Fill="{StaticResource BorderLineBrush}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{StaticResource SplitterHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{StaticResource SplitterHoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DiffCell" TargetType="RichTextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="IsUndoEnabled" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="ContextMenu" Value="{x:Null}" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="SelectionBrush" Value="#9BB4D4" />
+            <Setter Property="SelectionOpacity" Value="0.55" />
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="6" />
+        </Style>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,6" />
+        </Style>
+
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Courier New</FontFamily>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        </Style>
+
+        <Style x:Key="ToolButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="MinWidth" Value="90" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+        </Style>
+
+        <Style x:Key="DiffRowContainer" TargetType="ListBoxItem">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <ContentPresenter HorizontalAlignment="Stretch" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

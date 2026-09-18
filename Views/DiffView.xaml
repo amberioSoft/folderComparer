@@ -1,0 +1,424 @@
+<UserControl x:Class="FolderDiff.Views.DiffView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:inf="clr-namespace:FolderDiff.Infrastructure"
+             xmlns:vm="clr-namespace:FolderDiff.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="SideBySideRowTemplate">
+            <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollContentPresenter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="6" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0"
+                      Width="{Binding DataContext.DiffSplitWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource AutoWidth}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                        <TextBlock Text="{Binding LeftNumber}" Width="46" TextAlignment="Right"
+                                   Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                    </Border>
+                    <Border Grid.Column="1" Padding="4,0"
+                            Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Left}">
+                        <RichTextBox Style="{StaticResource DiffCell}"
+                                     inf:DiffText.SelectableSpans="{Binding LeftSpans}" />
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="1" Background="{StaticResource SplitterBrush}" />
+
+                <Grid Grid.Column="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                        <TextBlock Text="{Binding RightNumber}" Width="46" TextAlignment="Right"
+                                   Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                    </Border>
+                    <Border Grid.Column="1" Padding="4,0"
+                            Background="{Binding RightKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                        <RichTextBox Style="{StaticResource DiffCell}"
+                                     inf:DiffText.SelectableSpans="{Binding RightSpans}" />
+                    </Border>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="InlineRowTemplate">
+            <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollContentPresenter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                    <TextBlock Text="{Binding LeftNumber}" Width="46" TextAlignment="Right"
+                               Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                </Border>
+                <Border Grid.Column="1" Background="{StaticResource GutterBrush}">
+                    <TextBlock Text="{Binding RightNumber}" Width="46" TextAlignment="Right"
+                               Margin="0,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                </Border>
+                <Border Grid.Column="2" Padding="4,0"
+                        Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                    <TextBlock Text="{Binding Marker}" FontWeight="Bold" />
+                </Border>
+                <Border Grid.Column="3" Padding="2,0"
+                        Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                    <RichTextBox Style="{StaticResource DiffCell}"
+                                 inf:DiffText.SelectableSpans="{Binding LeftSpans}" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DiffSeparatorTemplate">
+            <Border Background="{StaticResource GutterBrush}" Padding="10,3"
+                    BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,1,0,1">
+                <TextBlock Text="{Binding SeparatorText}" Foreground="{StaticResource LineNumberBrush}" />
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderLineBrush}"
+                BorderThickness="0,0,0,1" Padding="12,8">
+            <WrapPanel>
+                <TextBlock Text="Ігнорувати" Style="{StaticResource FieldLabel}" />
+                <TextBox Width="260" Padding="4,3" Margin="0,0,16,0"
+                         ToolTip="Шаблони через ; наприклад .git;bin;obj;*.user"
+                         Text="{Binding IgnorePatterns, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="Пробіли" Style="{StaticResource FieldLabel}" />
+                <ComboBox Width="150" Margin="0,0,14,0" VerticalAlignment="Center"
+                          ItemsSource="{Binding WhitespaceOptions}" DisplayMemberPath="Title"
+                          SelectedItem="{Binding SelectedWhitespace}"
+                          ToolTip="{Binding WhitespaceHint}" />
+                <CheckBox Content="Кінці рядків" VerticalAlignment="Center" Margin="0,0,14,0"
+                          ToolTip="Вважати CRLF і LF однаковими"
+                          IsChecked="{Binding IgnoreLineEndings}" />
+                <CheckBox Content="По папках" VerticalAlignment="Center" Margin="0,0,14,0"
+                          ToolTip="Показувати список змінених файлів деревом папок"
+                          IsChecked="{Binding GroupByFolder}" />
+                <CheckBox Content="Слідкувати за змінами" VerticalAlignment="Center" Margin="0,0,20,0"
+                          ToolTip="Автоматично оновлювати результат при зміні файлів у папках"
+                          IsChecked="{Binding WatchChanges}" />
+                <RadioButton Content="Дві колонки" GroupName="ViewMode" VerticalAlignment="Center" Margin="0,0,12,0"
+                             IsChecked="{Binding IsSideBySide}" />
+                <RadioButton Content="Один стовпець" GroupName="ViewMode" VerticalAlignment="Center" Margin="0,0,20,0"
+                             IsChecked="{Binding IsSideBySide, Converter={StaticResource InverseBool}}" />
+                <CheckBox Content="Згортати незмінене" VerticalAlignment="Center" Margin="0,0,8,0"
+                          IsChecked="{Binding CollapseUnchanged}" />
+                <TextBlock Text="контекст" Style="{StaticResource FieldLabel}" />
+                <ComboBox Width="60" ItemsSource="{Binding ContextLineOptions}"
+                          SelectedItem="{Binding ContextLines}"
+                          IsEnabled="{Binding CollapseUnchanged}" />
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition MinWidth="200"
+                                  Width="{Binding FileListWidth, Converter={StaticResource PixelWidth}, Mode=TwoWay}" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="340" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{StaticResource ChromeBrush}" Padding="12,8"
+                        BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,1,1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Foreground="{StaticResource StatusAddedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Додані файли"
+                                   Text="{Binding AddedCount, StringFormat='+{0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusDeletedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Видалені файли"
+                                   Text="{Binding DeletedCount, StringFormat='−{0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusModifiedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Змінені файли"
+                                   Text="{Binding ModifiedCount, StringFormat='M {0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusUnchangedBrush}"
+                                   ToolTip="Однакові файли"
+                                   Text="{Binding UnchangedCount, StringFormat='= {0}'}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Padding="8,6" BorderBrush="{StaticResource BorderLineBrush}"
+                        BorderThickness="0,0,1,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="SearchBox" Padding="4,3" ToolTip="Пошук за шляхом (Ctrl+F)"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox Grid.Column="1" Width="130" Margin="6,0,0,0"
+                                  ItemsSource="{Binding StatusFilters}" DisplayMemberPath="Title"
+                                  SelectedItem="{Binding SelectedStatusFilter}" />
+                    </Grid>
+                </Border>
+
+                <TreeView Grid.Row="2" BorderThickness="0,0,1,0" BorderBrush="{StaticResource BorderLineBrush}"
+                          ItemsSource="{Binding FileTree}"
+                          SelectedItemChanged="OnTreeSelectedItemChanged"
+                          Visibility="{Binding GroupByFolder, Converter={StaticResource BoolToVisible}}"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <TreeView.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenSelectedCommand}" />
+                    </TreeView.InputBindings>
+                    <TreeView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Відкрити файл" Command="{Binding OpenSelectedCommand}" />
+                            <MenuItem Header="Показати в Проводнику" Command="{Binding RevealSelectedCommand}" />
+                            <Separator />
+                            <MenuItem Header="Копіювати повний шлях" Command="{Binding CopyPathCommand}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem" BasedOn="{StaticResource SolutionTreeItem}">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                            <Grid MinWidth="160" ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0" Width="21"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Header}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FolderGeometry}"
+                                      Fill="{StaticResource FolderIconBrush}"
+                                      Stroke="{StaticResource FolderIconBrush}" StrokeThickness="0.6"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Folder}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FolderGeometry}"
+                                      Fill="Transparent"
+                                      Stroke="{StaticResource TreePathBrush}" StrokeThickness="1.1"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Root}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FileGeometry}"
+                                      Fill="White" Stroke="{StaticResource FileIconBrush}" StrokeThickness="1"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=File}" />
+
+                                <TextBlock Grid.Column="1" Text="{Binding Name}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource TreeRowText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Header">
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Root">
+                                                    <Setter Property="Foreground" Value="{StaticResource TreePathBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Folder">
+                                                    <Setter Property="Foreground" Value="{StaticResource TreePathBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Column="2" Text="{Binding StatusGlyph}" FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFont}" FontSize="11" Margin="8,0,6,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}"
+                                           Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=File}" />
+                            </Grid>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <ListBox Grid.Row="2" BorderThickness="0,0,1,0" BorderBrush="{StaticResource BorderLineBrush}"
+                         ItemsSource="{Binding VisibleFiles}"
+                         SelectedItem="{Binding SelectedFile}"
+                         HorizontalContentAlignment="Stretch"
+                         Visibility="{Binding GroupByFolder, Converter={StaticResource BoolToHidden}}"
+                         ItemContainerStyle="{StaticResource SolutionListItem}"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenSelectedCommand}" />
+                    </ListBox.InputBindings>
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Відкрити файл" Command="{Binding OpenSelectedCommand}" />
+                            <MenuItem Header="Показати в Проводнику" Command="{Binding RevealSelectedCommand}" />
+                            <Separator />
+                            <MenuItem Header="Копіювати повний шлях" Command="{Binding CopyPathCommand}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2" ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding StatusGlyph}" FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Folder}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource MutedTextBrush}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11" Margin="8,0,4,0"
+                                           VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
+                          ToolTip="Потягніть, щоб змінити ширину списку файлів" />
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{StaticResource ChromeBrush}" Padding="12,6"
+                        BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding DiffHeader}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding DiffStats}" Margin="12,0" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource MutedTextBrush}" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button Content="↑ Зміна (F7)" Padding="8,3" Margin="0,0,6,0"
+                                    Command="{Binding PreviousChangeCommand}" />
+                            <Button Content="↓ Зміна (F8)" Padding="8,3"
+                                    Command="{Binding NextChangeCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid x:Name="PaneTitles" Grid.Row="1" SizeChanged="OnPaneTitlesSizeChanged"
+                      Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="LeftPaneColumn" MinWidth="160"
+                                          Width="{Binding DiffSplitWidth, Converter={StaticResource PixelWidth}}" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                    </Grid.ColumnDefinitions>
+                    <Border Padding="10,4" BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,0,1">
+                        <TextBlock Text="{Binding LeftPaneTitle}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding LeftPaneTitle}"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </Border>
+                    <Border Grid.Column="2" Padding="10,4" BorderBrush="{StaticResource BorderLineBrush}"
+                            BorderThickness="0,0,0,1">
+                        <TextBlock Text="{Binding RightPaneTitle}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding RightPaneTitle}"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </Border>
+                </Grid>
+
+                <ListBox x:Name="SideBySideList" Grid.Row="2" BorderThickness="0"
+                         Background="{StaticResource SurfaceBrush}"
+                         ItemsSource="{Binding DiffRows}"
+                         ItemContainerStyle="{StaticResource DiffRowContainer}"
+                         inf:ListBoxScroll.ScrollToIndex="{Binding ScrollToRow}"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Копіювати рядок" Command="{Binding CopyRowCommand}"
+                                      CommandParameter="{Binding SelectedItem, ElementName=SideBySideList}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplateSelector>
+                        <inf:DiffRowTemplateSelector RowTemplate="{StaticResource SideBySideRowTemplate}"
+                                                     SeparatorTemplate="{StaticResource DiffSeparatorTemplate}" />
+                    </ListBox.ItemTemplateSelector>
+                </ListBox>
+
+                <ListBox x:Name="InlineList" Grid.Row="2" BorderThickness="0"
+                         Background="{StaticResource SurfaceBrush}"
+                         ItemsSource="{Binding DiffRows}"
+                         ItemContainerStyle="{StaticResource DiffRowContainer}"
+                         inf:ListBoxScroll.ScrollToIndex="{Binding ScrollToRow}"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToHidden}}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Копіювати рядок" Command="{Binding CopyRowCommand}"
+                                      CommandParameter="{Binding SelectedItem, ElementName=InlineList}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplateSelector>
+                        <inf:DiffRowTemplateSelector RowTemplate="{StaticResource InlineRowTemplate}"
+                                                     SeparatorTemplate="{StaticResource DiffSeparatorTemplate}" />
+                    </ListBox.ItemTemplateSelector>
+                </ListBox>
+
+                <Grid Grid.Row="1" Grid.RowSpan="2" Panel.ZIndex="20"
+                      Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition MinWidth="160"
+                                          Width="{Binding DiffSplitWidth, Converter={StaticResource PixelWidth}, Mode=TwoWay}" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                    </Grid.ColumnDefinitions>
+                    <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
+                                  Background="Transparent"
+                                  ToolTip="Потягніть, щоб змінити ширину панелей"
+                                  DragCompleted="OnPaneSplitterDragCompleted" />
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

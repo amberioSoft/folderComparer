@@ -1,0 +1,125 @@
+<UserControl x:Class="FolderDiff.Views.KeysView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:FolderDiff.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:KeysViewModel}">
+
+    <ScrollViewer Background="{StaticResource ChromeBrush}" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Стан ключа" Style="{StaticResource CardTitle}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="{Binding Status.IsValid, Converter={StaticResource CheckMark}}"
+                                   FontWeight="Bold" FontSize="15" Margin="0,0,8,0"
+                                   Foreground="{Binding Status.IsValid, Converter={StaticResource OkBrush}}" />
+                        <TextBlock Text="{Binding Status.Description}" VerticalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="{Binding Status.Source, StringFormat='Джерело: {0}'}"
+                               Visibility="{Binding Status.Source, Converter={StaticResource TextToVisible}}" />
+                    <TextBlock Text="{Binding Message}" Style="{StaticResource Hint}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Файл ключа поруч з програмою" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Так само, як у консольній версії: файл imgkeys.txt лежить поруч з exe і підхоплюється сам при запуску. Кнопка нижче просто копіює вибраний файл на це місце." />
+                    <TextBlock Text="{Binding KeyFilePath}" FontFamily="{StaticResource MonoFont}" FontSize="11.5"
+                               TextWrapping="Wrap" Margin="0,4,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding KeyFileExists, Converter={StaticResource CheckMark}}"
+                                   FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Center"
+                                   Foreground="{Binding KeyFileExists, Converter={StaticResource OkBrush}}" />
+                        <TextBlock Text="файл на місці" VerticalAlignment="Center" FontSize="11.5"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                        <Button Content="Вкинути файл ключа..." Padding="12,5" Margin="16,0,0,0"
+                                Command="{Binding InstallKeyFileCommand}" />
+                        <Button Content="Перечитати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding ReloadFromFileCommand}" />
+                        <Button Content="Відкрити папку" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding OpenKeyFolderCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Рядок ключа" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Той самий один рядок base64, що лежить у imgkeys.txt. Вставлений сюди ключ діє до закриття програми. Щоб він підхоплювався далі, натисніть «Записати у файл поруч з exe»." />
+                    <TextBox Height="88" Margin="0,4,0,8" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                             Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Прийняти" Padding="12,5" MinWidth="110"
+                                Command="{Binding ApplyCodeCommand}" />
+                        <Button Content="Копіювати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding CopyCodeCommand}" />
+                        <Button Content="Записати у файл поруч з exe" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding SaveCodeAsFileCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Створити нову пару ключів" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Потрібно лише один раз. Два рядки: один лишається цій машині, другий іде на другу. Якщо ключі вже розкладені, нові створювати не треба, інакше машини перестануть розуміти одна одну." />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                        <TextBlock Text="Ця машина" Style="{StaticResource RowLabel}" />
+                        <TextBox Width="140" Padding="4,3" Text="{Binding MachineA}" />
+                        <TextBlock Text="Друга машина" Style="{StaticResource RowLabel}" Margin="16,0,8,0" />
+                        <TextBox Width="140" Padding="4,3" Text="{Binding MachineB}" />
+                        <Button Content="Створити пару" Padding="12,5" Margin="16,0,0,0"
+                                Command="{Binding CreatePairCommand}" />
+                    </StackPanel>
+                    <TextBox Height="60" Margin="0,0,0,6" IsReadOnly="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                             Text="{Binding GeneratedA, Mode=OneWay}" />
+                    <TextBox Height="60" Margin="0,0,0,8" IsReadOnly="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                             Text="{Binding GeneratedB, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Копіювати перший" Padding="12,5"
+                                Command="{Binding CopyGeneratedACommand}" />
+                        <Button Content="Копіювати другий" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding CopyGeneratedBCommand}" />
+                        <Button Content="Узяти перший собі" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding UseGeneratedACommand}" />
+                        <Button Content="Зберегти пару у файл..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding SavePairCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}" Margin="6,6,6,20">
+                <StackPanel>
+                    <TextBlock Text="Окремі файли PEM" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Необовʼязковий спосіб, лишений для сумісності. Папка з чотирма PEM-файлами: пакувальник бере два, розпакувальник інші два. Приватні ключі можна захистити паролем." />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBox Width="320" Padding="4,3"
+                                 Text="{Binding PemFolder, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Content="Огляд..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding BrowsePemFolderCommand}" />
+                        <TextBlock Text="Пароль" Style="{StaticResource RowLabel}" Margin="16,0,8,0" />
+                        <TextBox Width="130" Padding="4,3" Text="{Binding PemPassword}" />
+                        <Button Content="Використати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding UsePemCommand}" />
+                        <Button Content="Створити PEM..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding GeneratePemCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
