@@ -6,3 +6,5 @@ dist/
 *.suo
 imgkeys.txt
 keys/
+README.md
+minimal/README.md
