@@ -1,0 +1,1268 @@
+<Window x:Class="FolderDiff.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FolderDiff"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:MainViewModel}"
+        Title="Folder Diff" Height="820" Width="1420" MinWidth="1040" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource SurfaceBrush}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding CompareCommand}" />
+        <KeyBinding Key="R" Modifiers="Control" Command="{Binding RefreshCommand}" />
+        <KeyBinding Key="F8" Command="{Binding NextChangeCommand}" />
+        <KeyBinding Key="F7" Command="{Binding PreviousChangeCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+    </Window.InputBindings>
+
+    <Window.Resources>
+        <local:DiffLineBrushConverter x:Key="DiffLineBrush" />
+        <local:StatusBrushConverter x:Key="StatusBrush" />
+        <local:BoolToVisibilityConverter x:Key="BoolToVisible" />
+        <local:BoolToVisibilityConverter x:Key="BoolToHidden" Invert="True" />
+        <local:InverseBooleanConverter x:Key="InverseBool" />
+        <local:EnumMatchConverter x:Key="EnumMatch" />
+        <local:AutoNumberConverter x:Key="AutoNumber" />
+        <local:CheckMarkConverter x:Key="CheckMark" />
+        <local:NotNullToVisibilityConverter x:Key="NotNullToVisible" />
+        <local:EmptyStringToVisibilityConverter x:Key="TextToVisible" />
+        <local:BoolToBrushConverter x:Key="OkBrush" />
+        <local:PixelWidthConverter x:Key="PixelWidth" />
+        <local:AutoWidthConverter x:Key="AutoWidth" />
+        <local:EnumVisibilityConverter x:Key="EnumVisible" />
+
+    <Style x:Key="TreeChevron" TargetType="ToggleButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="Transparent" Width="16" Height="16">
+                        <Path x:Name="Arrow" Data="M 0,0 L 4,4 L 0,8 Z" Fill="{StaticResource TreeGlyphBrush}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Arrow" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="90" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource TreeGlyphHoverBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SolutionTreeItem" TargetType="TreeViewItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TreeViewItem">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Border x:Name="Row" Grid.Row="0" Background="Transparent" MinHeight="22">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource TreeHoverBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ToggleButton x:Name="Expander" Grid.Column="0" ClickMode="Press"
+                                              Style="{StaticResource TreeChevron}"
+                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" />
+                                <ContentPresenter x:Name="PART_Header" Grid.Column="1" ContentSource="Header"
+                                                  HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Margin="14,0,0,0" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="False">
+                            <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="HasItems" Value="False">
+                            <Setter TargetName="Expander" Property="Visibility" Value="Hidden" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="IsSelectionActive" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Row" Property="Background"
+                                    Value="{StaticResource TreeSelectionInactiveBrush}" />
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="IsSelectionActive" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource TreeSelectionBrush}" />
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SolutionListItem" TargetType="ListBoxItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Row" Background="Transparent" MinHeight="22" Padding="2,0">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource TreeHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource TreeSelectionBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TreeIcon" TargetType="Path">
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,5,0" />
+    </Style>
+
+    <Style x:Key="TreeRowText" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+    </Style>
+
+
+        <Style x:Key="PaneSplitter" TargetType="GridSplitter">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="ResizeDirection" Value="Columns" />
+            <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+            <Setter Property="Cursor" Value="SizeWE" />
+            <Setter Property="Background" Value="{StaticResource SplitterBrush}" />
+            <Setter Property="ShowsPreview" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}">
+                            <Rectangle Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                       Fill="{StaticResource BorderLineBrush}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{StaticResource SplitterHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{StaticResource SplitterHoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DiffCell" TargetType="RichTextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="IsUndoEnabled" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="ContextMenu" Value="{x:Null}" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="SelectionBrush" Value="#9BB4D4" />
+            <Setter Property="SelectionOpacity" Value="0.55" />
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="6" />
+        </Style>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,6" />
+        </Style>
+
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        </Style>
+
+        <Style x:Key="ToolButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="MinWidth" Value="90" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+        </Style>
+
+        <Style x:Key="DiffRowContainer" TargetType="ListBoxItem">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <ContentPresenter HorizontalAlignment="Stretch" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="SideBySideRowTemplate">
+            <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollContentPresenter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="6" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0"
+                      Width="{Binding DataContext.DiffSplitWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource AutoWidth}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                        <TextBlock Text="{Binding LeftNumber}" Width="46" TextAlignment="Right"
+                                   Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                    </Border>
+                    <Border Grid.Column="1" Padding="4,0"
+                            Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Left}">
+                        <RichTextBox Style="{StaticResource DiffCell}"
+                                     local:DiffText.SelectableSpans="{Binding LeftSpans}" />
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="1" Background="{StaticResource SplitterBrush}" />
+
+                <Grid Grid.Column="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                        <TextBlock Text="{Binding RightNumber}" Width="46" TextAlignment="Right"
+                                   Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                    </Border>
+                    <Border Grid.Column="1" Padding="4,0"
+                            Background="{Binding RightKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                        <RichTextBox Style="{StaticResource DiffCell}"
+                                     local:DiffText.SelectableSpans="{Binding RightSpans}" />
+                    </Border>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="InlineRowTemplate">
+            <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollContentPresenter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{StaticResource GutterBrush}">
+                    <TextBlock Text="{Binding LeftNumber}" Width="46" TextAlignment="Right"
+                               Margin="4,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                </Border>
+                <Border Grid.Column="1" Background="{StaticResource GutterBrush}">
+                    <TextBlock Text="{Binding RightNumber}" Width="46" TextAlignment="Right"
+                               Margin="0,0,8,0" Foreground="{StaticResource LineNumberBrush}" />
+                </Border>
+                <Border Grid.Column="2" Padding="4,0"
+                        Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                    <TextBlock Text="{Binding Marker}" FontWeight="Bold" />
+                </Border>
+                <Border Grid.Column="3" Padding="2,0"
+                        Background="{Binding LeftKind, Converter={StaticResource DiffLineBrush}, ConverterParameter=Right}">
+                    <RichTextBox Style="{StaticResource DiffCell}"
+                                 local:DiffText.SelectableSpans="{Binding LeftSpans}" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DiffSeparatorTemplate">
+            <Border Background="{StaticResource GutterBrush}" Padding="10,3"
+                    BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,1,0,1">
+                <TextBlock Text="{Binding SeparatorText}" Foreground="{StaticResource LineNumberBrush}" />
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource BorderLineBrush}"
+                BorderThickness="0,0,0,1" Padding="12,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="До (ліва)" Style="{StaticResource FieldLabel}" />
+                <TextBox Grid.Row="0" Grid.Column="1" Padding="5,4" MinWidth="140"
+                         AutomationProperties.AutomationId="LeftPathBox"
+                         Text="{Binding LeftPath, UpdateSourceTrigger=PropertyChanged}"
+                         AllowDrop="True" PreviewDragOver="OnPathDragOver" Drop="OnLeftDrop" />
+                <Button Grid.Row="0" Grid.Column="2" Content="Огляд..." Margin="6,0,0,0" Padding="10,4"
+                        AutomationProperties.AutomationId="BrowseLeftButton"
+                        Command="{Binding BrowseLeftCommand}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Після (права)" Style="{StaticResource FieldLabel}"
+                           Margin="0,8,8,0" />
+                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Padding="5,4" MinWidth="140"
+                         AutomationProperties.AutomationId="RightPathBox"
+                         Text="{Binding RightPath, UpdateSourceTrigger=PropertyChanged}"
+                         AllowDrop="True" PreviewDragOver="OnPathDragOver" Drop="OnRightDrop" />
+                <Button Grid.Row="1" Grid.Column="2" Content="Огляд..." Margin="6,8,0,0" Padding="10,4"
+                        AutomationProperties.AutomationId="BrowseRightButton"
+                        Command="{Binding BrowseRightCommand}" />
+
+                <StackPanel Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Content="Порівняти (F5)" Style="{StaticResource ToolButton}" MinWidth="130"
+                            AutomationProperties.AutomationId="CompareButton"
+                            Command="{Binding CompareCommand}" />
+                    <Button Content="Оновити (Ctrl+R)" Style="{StaticResource ToolButton}" MinWidth="130"
+                            ToolTip="Перерахувати зміни, зберігши вибраний файл"
+                            Command="{Binding RefreshCommand}" />
+                    <Button Content="Скасувати" Style="{StaticResource ToolButton}"
+                            Command="{Binding CancelCommand}" />
+                    <Button Content="Поміняти" Style="{StaticResource ToolButton}"
+                            Command="{Binding SwapCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1" BorderThickness="0" Background="{StaticResource SurfaceBrush}"
+                    Padding="0" Margin="0">
+            <TabItem Header="Різниця" AutomationProperties.AutomationId="TabDiff">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderLineBrush}"
+                BorderThickness="0,0,0,1" Padding="12,8">
+            <WrapPanel>
+                <TextBlock Text="Ігнорувати" Style="{StaticResource FieldLabel}" />
+                <TextBox Width="260" Padding="4,3" Margin="0,0,16,0"
+                         ToolTip="Шаблони через ; наприклад .git;bin;obj;*.user"
+                         Text="{Binding IgnorePatterns, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="Пробіли" Style="{StaticResource FieldLabel}" />
+                <ComboBox Width="150" Margin="0,0,14,0" VerticalAlignment="Center"
+                          ItemsSource="{Binding WhitespaceOptions}" DisplayMemberPath="Title"
+                          SelectedItem="{Binding SelectedWhitespace}"
+                          ToolTip="{Binding WhitespaceHint}" />
+                <CheckBox Content="Кінці рядків" VerticalAlignment="Center" Margin="0,0,14,0"
+                          ToolTip="Вважати CRLF і LF однаковими"
+                          IsChecked="{Binding IgnoreLineEndings}" />
+                <CheckBox Content="По папках" VerticalAlignment="Center" Margin="0,0,14,0"
+                          ToolTip="Показувати список змінених файлів деревом папок"
+                          IsChecked="{Binding GroupByFolder}" />
+                <CheckBox Content="Слідкувати за змінами" VerticalAlignment="Center" Margin="0,0,20,0"
+                          ToolTip="Автоматично оновлювати результат при зміні файлів у папках"
+                          IsChecked="{Binding WatchChanges}" />
+                <RadioButton Content="Дві колонки" GroupName="ViewMode" VerticalAlignment="Center" Margin="0,0,12,0"
+                             IsChecked="{Binding IsSideBySide}" />
+                <RadioButton Content="Один стовпець" GroupName="ViewMode" VerticalAlignment="Center" Margin="0,0,20,0"
+                             IsChecked="{Binding IsSideBySide, Converter={StaticResource InverseBool}}" />
+                <CheckBox Content="Згортати незмінене" VerticalAlignment="Center" Margin="0,0,8,0"
+                          IsChecked="{Binding CollapseUnchanged}" />
+                <TextBlock Text="контекст" Style="{StaticResource FieldLabel}" />
+                <ComboBox Width="60" ItemsSource="{Binding ContextLineOptions}"
+                          SelectedItem="{Binding ContextLines}"
+                          IsEnabled="{Binding CollapseUnchanged}" />
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition MinWidth="200"
+                                  Width="{Binding FileListWidth, Converter={StaticResource PixelWidth}, Mode=TwoWay}" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="340" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{StaticResource ChromeBrush}" Padding="12,8"
+                        BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,1,1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Foreground="{StaticResource StatusAddedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Додані файли"
+                                   Text="{Binding AddedCount, StringFormat='+{0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusDeletedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Видалені файли"
+                                   Text="{Binding DeletedCount, StringFormat='−{0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusModifiedBrush}" FontWeight="SemiBold"
+                                   ToolTip="Змінені файли"
+                                   Text="{Binding ModifiedCount, StringFormat='M {0}'}" Margin="0,0,14,0" />
+                        <TextBlock Foreground="{StaticResource StatusUnchangedBrush}"
+                                   ToolTip="Однакові файли"
+                                   Text="{Binding UnchangedCount, StringFormat='= {0}'}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Padding="8,6" BorderBrush="{StaticResource BorderLineBrush}"
+                        BorderThickness="0,0,1,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="SearchBox" Padding="4,3" ToolTip="Пошук за шляхом (Ctrl+F)"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox Grid.Column="1" Width="130" Margin="6,0,0,0"
+                                  ItemsSource="{Binding StatusFilters}" DisplayMemberPath="Title"
+                                  SelectedItem="{Binding SelectedStatusFilter}" />
+                    </Grid>
+                </Border>
+
+                <TreeView Grid.Row="2" BorderThickness="0,0,1,0" BorderBrush="{StaticResource BorderLineBrush}"
+                          ItemsSource="{Binding FileTree}"
+                          SelectedItemChanged="OnTreeSelectedItemChanged"
+                          Visibility="{Binding GroupByFolder, Converter={StaticResource BoolToVisible}}"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <TreeView.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenSelectedCommand}" />
+                    </TreeView.InputBindings>
+                    <TreeView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Відкрити файл" Command="{Binding OpenSelectedCommand}" />
+                            <MenuItem Header="Показати в Проводнику" Command="{Binding RevealSelectedCommand}" />
+                            <Separator />
+                            <MenuItem Header="Копіювати повний шлях" Command="{Binding CopyPathCommand}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem" BasedOn="{StaticResource SolutionTreeItem}">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                            <Grid MinWidth="160" ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0" Width="21"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Header}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FolderGeometry}"
+                                      Fill="{StaticResource FolderIconBrush}"
+                                      Stroke="{StaticResource FolderIconBrush}" StrokeThickness="0.6"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Folder}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FolderGeometry}"
+                                      Fill="Transparent"
+                                      Stroke="{StaticResource TreePathBrush}" StrokeThickness="1.1"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=Root}" />
+
+                                <Path Grid.Column="0" Style="{StaticResource TreeIcon}"
+                                      Data="{StaticResource FileGeometry}"
+                                      Fill="White" Stroke="{StaticResource FileIconBrush}" StrokeThickness="1"
+                                      Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=File}" />
+
+                                <TextBlock Grid.Column="1" Text="{Binding Name}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource TreeRowText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Header">
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Root">
+                                                    <Setter Property="Foreground" Value="{StaticResource TreePathBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Kind}" Value="Folder">
+                                                    <Setter Property="Foreground" Value="{StaticResource TreePathBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Column="2" Text="{Binding StatusGlyph}" FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFont}" FontSize="11" Margin="8,0,6,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}"
+                                           Visibility="{Binding Kind, Converter={StaticResource EnumVisible}, ConverterParameter=File}" />
+                            </Grid>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <ListBox Grid.Row="2" BorderThickness="0,0,1,0" BorderBrush="{StaticResource BorderLineBrush}"
+                         ItemsSource="{Binding VisibleFiles}"
+                         SelectedItem="{Binding SelectedFile}"
+                         HorizontalContentAlignment="Stretch"
+                         Visibility="{Binding GroupByFolder, Converter={StaticResource BoolToHidden}}"
+                         ItemContainerStyle="{StaticResource SolutionListItem}"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.InputBindings>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenSelectedCommand}" />
+                    </ListBox.InputBindings>
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Відкрити файл" Command="{Binding OpenSelectedCommand}" />
+                            <MenuItem Header="Показати в Проводнику" Command="{Binding RevealSelectedCommand}" />
+                            <Separator />
+                            <MenuItem Header="Копіювати повний шлях" Command="{Binding CopyPathCommand}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2" ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding StatusGlyph}" FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Folder}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource MutedTextBrush}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11" Margin="8,0,4,0"
+                                           VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
+                          ToolTip="Потягніть, щоб змінити ширину списку файлів" />
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{StaticResource ChromeBrush}" Padding="12,6"
+                        BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding DiffHeader}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding DiffStats}" Margin="12,0" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource MutedTextBrush}" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button Content="↑ Зміна (F7)" Padding="8,3" Margin="0,0,6,0"
+                                    Command="{Binding PreviousChangeCommand}" />
+                            <Button Content="↓ Зміна (F8)" Padding="8,3"
+                                    Command="{Binding NextChangeCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid x:Name="PaneTitles" Grid.Row="1" SizeChanged="OnPaneTitlesSizeChanged"
+                      Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="LeftPaneColumn" MinWidth="160"
+                                          Width="{Binding DiffSplitWidth, Converter={StaticResource PixelWidth}}" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                    </Grid.ColumnDefinitions>
+                    <Border Padding="10,4" BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,0,1">
+                        <TextBlock Text="{Binding LeftPaneTitle}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding LeftPaneTitle}"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </Border>
+                    <Border Grid.Column="2" Padding="10,4" BorderBrush="{StaticResource BorderLineBrush}"
+                            BorderThickness="0,0,0,1">
+                        <TextBlock Text="{Binding RightPaneTitle}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding RightPaneTitle}"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </Border>
+                </Grid>
+
+                <ListBox x:Name="SideBySideList" Grid.Row="2" BorderThickness="0"
+                         Background="{StaticResource SurfaceBrush}"
+                         ItemsSource="{Binding DiffRows}"
+                         ItemContainerStyle="{StaticResource DiffRowContainer}"
+                         local:ListBoxScroll.ScrollToIndex="{Binding ScrollToRow}"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Копіювати рядок" Command="{Binding CopyRowCommand}"
+                                      CommandParameter="{Binding SelectedItem, ElementName=SideBySideList}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplateSelector>
+                        <local:DiffRowTemplateSelector RowTemplate="{StaticResource SideBySideRowTemplate}"
+                                                     SeparatorTemplate="{StaticResource DiffSeparatorTemplate}" />
+                    </ListBox.ItemTemplateSelector>
+                </ListBox>
+
+                <ListBox x:Name="InlineList" Grid.Row="2" BorderThickness="0"
+                         Background="{StaticResource SurfaceBrush}"
+                         ItemsSource="{Binding DiffRows}"
+                         ItemContainerStyle="{StaticResource DiffRowContainer}"
+                         local:ListBoxScroll.ScrollToIndex="{Binding ScrollToRow}"
+                         FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                         PreviewMouseRightButtonDown="OnListRightButtonDown"
+                         Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToHidden}}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Копіювати рядок" Command="{Binding CopyRowCommand}"
+                                      CommandParameter="{Binding SelectedItem, ElementName=InlineList}" />
+                            <MenuItem Header="Копіювати діф файлу" Command="{Binding CopyDiffCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplateSelector>
+                        <local:DiffRowTemplateSelector RowTemplate="{StaticResource InlineRowTemplate}"
+                                                     SeparatorTemplate="{StaticResource DiffSeparatorTemplate}" />
+                    </ListBox.ItemTemplateSelector>
+                </ListBox>
+
+                <Grid Grid.Row="1" Grid.RowSpan="2" Panel.ZIndex="20"
+                      Visibility="{Binding IsSideBySide, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition MinWidth="160"
+                                          Width="{Binding DiffSplitWidth, Converter={StaticResource PixelWidth}, Mode=TwoWay}" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                    </Grid.ColumnDefinitions>
+                    <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
+                                  Background="Transparent"
+                                  ToolTip="Потягніть, щоб змінити ширину панелей"
+                                  DragCompleted="OnPaneSplitterDragCompleted" />
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+            </TabItem>
+            <TabItem Header="Передача картинками" AutomationProperties.AutomationId="TabTransfer">
+    <Grid Background="{StaticResource ChromeBrush}" DataContext="{Binding Transfer}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="14,8" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderLineBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Ключ" Style="{StaticResource RowLabel}" />
+                <TextBlock Text="{Binding KeySummary}" VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{Binding CanPackWithKey, Converter={StaticResource OkBrush}}" />
+                <TextBlock Text="{Binding OperationTitle}" Margin="24,0,0,0" VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedTextBrush}" />
+                <ProgressBar Width="160" Height="10" Margin="10,0,0,0" IsIndeterminate="True"
+                             Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisible}}" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Відправити папку картинками" Style="{StaticResource CardTitle}" />
+
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="{Binding SourceFolder, StringFormat='Пакується права папка «Після»: {0}'}" />
+
+                    <TextBlock Text="Що відправляти" Style="{StaticResource RowLabel}" Margin="0,4,0,4" />
+                    <RadioButton GroupName="BaseMode" Content="Уся папка, повна копія" Margin="0,2"
+                                 IsChecked="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=Full}" />
+                    <RadioButton GroupName="BaseMode" Content="Тільки зміни проти лівої папки «До»" Margin="0,2"
+                                 IsChecked="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=AgainstFolder}" />
+                    <RadioButton GroupName="BaseMode" Content="Тільки зміни проти файлу знімка" Margin="0,2"
+                                 IsChecked="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=SnapshotFile}" />
+                    <RadioButton GroupName="BaseMode" Content="Тільки зміни проти запамʼятованої версії в папці" Margin="0,2"
+                                 IsChecked="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=RememberedVersion}" />
+
+                    <Grid Margin="20,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Padding="4,3" Text="{Binding SnapshotPath, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Файл знімка .icv"
+                                 AutomationProperties.AutomationId="SnapshotBox"
+                                 IsEnabled="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=SnapshotFile}" />
+                        <Button Grid.Column="1" Content="Огляд..." Padding="10,3" Margin="6,0,0,0"
+                                IsEnabled="{Binding BaseMode, Converter={StaticResource EnumMatch}, ConverterParameter=SnapshotFile}"
+                                Command="{Binding BrowseSnapshotCommand}" />
+                        <Button Grid.Column="2" Content="Створити знімок..." Padding="10,3" Margin="6,0,0,0"
+                                Command="{Binding CreateSnapshotCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding BaseDescription}" Style="{StaticResource Hint}" Margin="0,8,0,10" />
+
+                    <TextBlock Text="Куди покласти картинки" Style="{StaticResource RowLabel}" />
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Padding="5,4" AutomationProperties.AutomationId="OutputFolderBox"
+                                 Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="1" Content="Огляд..." Padding="10,4" Margin="6,0,0,0"
+                                Command="{Binding BrowseOutputCommand}" />
+                        <Button Grid.Column="2" Content="Відкрити" Padding="10,4" Margin="6,0,0,0"
+                                Command="{Binding OpenOutputFolderCommand}" />
+                    </Grid>
+
+                    <Expander Header="Додаткові параметри" Margin="0,12,0,0">
+                        <StackPanel Margin="0,8,0,0">
+                            <WrapPanel>
+                                <TextBlock Text="Картинок" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="80" Margin="0,0,16,6" ItemsSource="{Binding PartsOptions}"
+                                          SelectedItem="{Binding Parts}"
+                                          ToolTip="0 означає автоматично: повна копія завжди 5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource AutoNumber}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Text="Біт на канал" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="70" Margin="0,0,16,6" ItemsSource="{Binding StepBitsOptions}"
+                                          SelectedItem="{Binding StepBits}"
+                                          ToolTip="4 або 5 дають графіку, 8 дає шум і найменший розмір" />
+
+                                <TextBlock Text="Стиснення" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="70" Margin="0,0,16,6" ItemsSource="{Binding LevelOptions}"
+                                          SelectedItem="{Binding CompressionLevel}"
+                                          ToolTip="Рівень Brotli, 11 найщільніший" />
+
+                                <TextBlock Text="Чанк МіБ" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="80" Margin="0,0,16,6" ItemsSource="{Binding ChunkOptions}"
+                                          SelectedItem="{Binding ChunkMiB}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource AutoNumber}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Text="Потоків" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="80" Margin="0,0,16,6" ItemsSource="{Binding ThreadsOptions}"
+                                          SelectedItem="{Binding Threads}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource AutoNumber}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Text="Префікс назв" Style="{StaticResource RowLabel}" />
+                                <TextBox Width="80" Padding="4,3" Margin="0,0,16,6"
+                                         Text="{Binding NamePrefix, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Text="Пріоритет процесу" Style="{StaticResource RowLabel}" />
+                                <ComboBox Width="120" Margin="0,0,16,6" ItemsSource="{Binding PriorityOptions}"
+                                          SelectedItem="{Binding Priority}"
+                                          ToolTip="Порожнє значення не змінює пріоритет. Нижчий пріоритет уповільнить і саме вікно.">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </WrapPanel>
+
+                            <WrapPanel Margin="0,4,0,0">
+                                <CheckBox Content="Лишити архів на диску" Margin="0,0,16,6"
+                                          IsChecked="{Binding KeepArchive}" />
+                                <CheckBox Content="Запамʼятати версію в папці" Margin="0,0,16,6"
+                                          ToolTip="Дозволяє потім пакувати проти запамʼятованої версії"
+                                          IsChecked="{Binding RememberVersion}" />
+                            </WrapPanel>
+
+                            <TextBlock Text="Готові набори виключень" Style="{StaticResource RowLabel}" Margin="0,8,0,4" />
+                            <ItemsControl ItemsSource="{Binding Presets}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" Margin="0,0,14,4"
+                                                  IsChecked="{Binding IsSelected}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="Додатково виключити" Style="{StaticResource RowLabel}" Margin="0,8,0,4" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Padding="4,3" ToolTip="Шаблони через ; наприклад *.pdf;installer/"
+                                         Text="{Binding ExtraExcludes, UpdateSourceTrigger=PropertyChanged}" />
+                                <Button Grid.Column="1" Content="З файлу..." Padding="10,3" Margin="6,0,0,0"
+                                        Command="{Binding LoadExcludeFileCommand}" />
+                            </Grid>
+                            <TextBlock Text="{Binding EffectiveExcludesText}" Style="{StaticResource Hint}" />
+
+                            <TextBlock Text="Ховати дані у власні фото PNG" Style="{StaticResource RowLabel}"
+                                       Margin="0,8,0,4" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ListBox MaxHeight="90" ItemsSource="{Binding CoverFiles}" FontSize="11" />
+                                <Button Grid.Column="1" Content="Додати..." Padding="10,3" Margin="6,0,0,0"
+                                        VerticalAlignment="Top" Command="{Binding AddCoverCommand}" />
+                                <Button Grid.Column="2" Content="Очистити" Padding="10,3" Margin="6,0,0,0"
+                                        VerticalAlignment="Top" Command="{Binding ClearCoversCommand}" />
+                                <ComboBox Grid.Column="3" Width="60" Margin="6,0,0,0" VerticalAlignment="Top"
+                                          ItemsSource="{Binding CoverBitsOptions}" SelectedItem="{Binding CoverBits}"
+                                          ToolTip="Біт на канал у фото" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Фото лишається на вигляд таким самим. Для повної копії проєкту цей режим не годиться, потрібні десятки мегабайтів." />
+                        </StackPanel>
+                    </Expander>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button Content="Оцінити різницю" Padding="12,6" MinWidth="140"
+                                ToolTip="Порахувати, скільки реально поїде, нічого не записуючи"
+                                Command="{Binding EstimateCommand}" />
+                        <Button Content="Пробний прогін" Padding="12,6" MinWidth="130" Margin="8,0,0,0"
+                                ToolTip="Показати, що буде запаковано, без запису картинок"
+                                Command="{Binding DryRunCommand}" />
+                        <Button Content="Запакувати" Padding="12,6" MinWidth="130" Margin="8,0,0,0"
+                                FontWeight="SemiBold" Command="{Binding PackCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Text="Отримати папку з картинок" Style="{StaticResource CardTitle}" />
+
+                    <TextBlock Text="Папка з картинками" Style="{StaticResource RowLabel}" />
+                    <Grid Margin="0,4,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Padding="5,4" AutomationProperties.AutomationId="ImagesFolderBox"
+                                 Text="{Binding ImagesFolder, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="1" Content="Огляд..." Padding="10,4" Margin="6,0,0,0"
+                                Command="{Binding BrowseImagesCommand}" />
+                        <Button Grid.Column="2" Content="= вихідна" Padding="10,4" Margin="6,0,0,0"
+                                ToolTip="Узяти папку, в яку пакували"
+                                Command="{Binding UseOutputAsImagesCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="Куди відновити" Style="{StaticResource RowLabel}" />
+                    <Grid Margin="0,4,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Padding="5,4" AutomationProperties.AutomationId="RestoreFolderBox"
+                                 Text="{Binding RestoreFolder, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="1" Content="Огляд..." Padding="10,4" Margin="6,0,0,0"
+                                Command="{Binding BrowseRestoreCommand}" />
+                        <Button Grid.Column="2" Content="= Після" Padding="10,4" Margin="6,0,0,0"
+                                ToolTip="Узяти праву папку з порівняння"
+                                Command="{Binding UseRightAsRestoreCommand}" />
+                    </Grid>
+
+                    <CheckBox Content="Не перевіряти підпис відправника" Margin="0,2"
+                              IsChecked="{Binding SkipSignature}" />
+                    <CheckBox Content="Запамʼятати версію в папці після розпакування" Margin="0,4"
+                              IsChecked="{Binding RememberAfterUnpack}" />
+
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                               Text="Програма сама бачить, повна це копія чи набір змін. Для набору змін вона спершу звіряє контрольну суму папки і відмовиться, якщо це не та база." />
+
+                    <Button Content="Розпакувати" Padding="12,6" MinWidth="130" Margin="0,10,0,0"
+                            HorizontalAlignment="Left" FontWeight="SemiBold"
+                            Command="{Binding UnpackCommand}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="6,0,6,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420" MinWidth="300" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="240" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Результат" Style="{StaticResource CardTitle}" />
+
+                        <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Foreground="{StaticResource StatusDeletedBrush}"
+                                   Visibility="{Binding ErrorText, Converter={StaticResource TextToVisible}}" />
+
+                        <StackPanel Visibility="{Binding DeltaEstimate, Converter={StaticResource NotNullToVisible}}"
+                                    Margin="0,0,0,10">
+                            <TextBlock Text="Різниця" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding DeltaEstimate.FilesText}" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding DeltaEstimate.RemovedText}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding DeltaEstimate.LiteralBytesText, StringFormat='нових даних {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding DeltaEstimate.CopiedBytesText, StringFormat='перевикористано з бази {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding DeltaEstimate.NewTotalBytesText, StringFormat='розмір нової версії {0}'}" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding PackReport, Converter={StaticResource NotNullToVisible}}">
+                            <TextBlock Text="Упаковка" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.ModeText, StringFormat='режим: {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding PackReport.ContentText}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.OriginalBytesText, StringFormat='оригінал {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.ArchiveBytesText, StringFormat='після стиснення {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.CipherBytesText, StringFormat='після шифрування {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.ImageBytesText, StringFormat='картинки разом {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.ReplacedImages, StringFormat='перезаписано старих картинок: {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.TreeDigest, StringFormat='відпечаток дерева {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding PackReport.ElapsedText, StringFormat='час {0}'}" />
+
+                            <ItemsControl ItemsSource="{Binding PackReport.Images}" Margin="0,6,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" FontFamily="{StaticResource MonoFont}"
+                                                       FontSize="11" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Path}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Resolution}" FontSize="11"
+                                                       Margin="8,0" Foreground="{StaticResource MutedTextBrush}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding FileLengthText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedTextBrush}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding UnpackReport, Converter={StaticResource NotNullToVisible}}">
+                            <TextBlock Text="Розпакування" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding UnpackReport.ModeText}" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding UnpackReport.ContentText}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding UnpackReport.OriginalBytesText, StringFormat='розмір {0}'}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding UnpackReport.ElapsedText, StringFormat='час {0}'}" />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,2">
+                                <TextBlock Text="{Binding UnpackReport.SummaryMatches, Converter={StaticResource CheckMark}}"
+                                           FontWeight="Bold" Margin="0,0,6,0"
+                                           Foreground="{Binding UnpackReport.SummaryMatches, Converter={StaticResource OkBrush}}" />
+                                <TextBlock Text="розміри і контрольні суми збіглися з відправником" FontSize="11.5" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="{Binding UnpackReport.ImageSummaryMatches, Converter={StaticResource CheckMark}}"
+                                           FontWeight="Bold" Margin="0,0,6,0"
+                                           Foreground="{Binding UnpackReport.ImageSummaryMatches, Converter={StaticResource OkBrush}}" />
+                                <TextBlock Text="зводка в картинці збіглася з даними" FontSize="11.5" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding UnpackReport.SignatureVerified, Converter={StaticResource CheckMark}}"
+                                           FontWeight="Bold" Margin="0,0,6,0"
+                                           Foreground="{Binding UnpackReport.SignatureVerified, Converter={StaticResource OkBrush}}" />
+                                <TextBlock Text="підпис відправника дійсний" FontSize="11.5" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
+                          Background="{StaticResource ChromeBrush}" />
+
+            <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="0,6,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Журнал" Style="{StaticResource CardTitle}" Margin="0" />
+                        <Button Grid.Column="1" Content="Копіювати" Padding="8,3" Margin="6,0,0,0"
+                                Command="{Binding CopyLogCommand}" />
+                        <Button Grid.Column="2" Content="Очистити" Padding="8,3" Margin="6,0,0,0"
+                                Command="{Binding ClearLogCommand}" />
+                    </Grid>
+                    <ListBox x:Name="LogList" Grid.Row="1" ItemsSource="{Binding Log}"
+                             FontFamily="{StaticResource MonoFont}" FontSize="11.5"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+            </TabItem>
+            <TabItem Header="Ключ" AutomationProperties.AutomationId="TabKeys">
+    <ScrollViewer Background="{StaticResource ChromeBrush}" VerticalScrollBarVisibility="Auto" DataContext="{Binding Keys}">
+        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Стан ключа" Style="{StaticResource CardTitle}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="{Binding Status.IsValid, Converter={StaticResource CheckMark}}"
+                                   FontWeight="Bold" FontSize="15" Margin="0,0,8,0"
+                                   Foreground="{Binding Status.IsValid, Converter={StaticResource OkBrush}}" />
+                        <TextBlock Text="{Binding Status.Description}" VerticalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="{Binding Status.Source, StringFormat='Джерело: {0}'}"
+                               Visibility="{Binding Status.Source, Converter={StaticResource TextToVisible}}" />
+                    <TextBlock Text="{Binding Message}" Style="{StaticResource Hint}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Файл ключа поруч з програмою" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Так само, як у консольній версії: файл imgkeys.txt лежить поруч з exe і підхоплюється сам при запуску. Кнопка нижче просто копіює вибраний файл на це місце." />
+                    <TextBlock Text="{Binding KeyFilePath}" FontFamily="{StaticResource MonoFont}" FontSize="11.5"
+                               TextWrapping="Wrap" Margin="0,4,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding KeyFileExists, Converter={StaticResource CheckMark}}"
+                                   FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Center"
+                                   Foreground="{Binding KeyFileExists, Converter={StaticResource OkBrush}}" />
+                        <TextBlock Text="файл на місці" VerticalAlignment="Center" FontSize="11.5"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                        <Button Content="Вкинути файл ключа..." Padding="12,5" Margin="16,0,0,0"
+                                Command="{Binding InstallKeyFileCommand}" />
+                        <Button Content="Перечитати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding ReloadFromFileCommand}" />
+                        <Button Content="Відкрити папку" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding OpenKeyFolderCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Рядок ключа" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Той самий один рядок base64, що лежить у imgkeys.txt. Вставлений сюди ключ діє до закриття програми. Щоб він підхоплювався далі, натисніть «Записати у файл поруч з exe»." />
+                    <TextBox Height="88" Margin="0,4,0,8" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                             Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Прийняти" Padding="12,5" MinWidth="110"
+                                Command="{Binding ApplyCodeCommand}" />
+                        <Button Content="Копіювати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding CopyCodeCommand}" />
+                        <Button Content="Записати у файл поруч з exe" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding SaveCodeAsFileCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Створити нову пару ключів" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Потрібно лише один раз. Два рядки: один лишається цій машині, другий іде на другу. Якщо ключі вже розкладені, нові створювати не треба, інакше машини перестануть розуміти одна одну." />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                        <TextBlock Text="Ця машина" Style="{StaticResource RowLabel}" />
+                        <TextBox Width="140" Padding="4,3" Text="{Binding MachineA}" />
+                        <TextBlock Text="Друга машина" Style="{StaticResource RowLabel}" Margin="16,0,8,0" />
+                        <TextBox Width="140" Padding="4,3" Text="{Binding MachineB}" />
+                        <Button Content="Створити пару" Padding="12,5" Margin="16,0,0,0"
+                                Command="{Binding CreatePairCommand}" />
+                    </StackPanel>
+                    <TextBox Height="60" Margin="0,0,0,6" IsReadOnly="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                             Text="{Binding GeneratedA, Mode=OneWay}" />
+                    <TextBox Height="60" Margin="0,0,0,8" IsReadOnly="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                             Text="{Binding GeneratedB, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Копіювати перший" Padding="12,5"
+                                Command="{Binding CopyGeneratedACommand}" />
+                        <Button Content="Копіювати другий" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding CopyGeneratedBCommand}" />
+                        <Button Content="Узяти перший собі" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding UseGeneratedACommand}" />
+                        <Button Content="Зберегти пару у файл..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding SavePairCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorder}" Margin="6,6,6,20">
+                <StackPanel>
+                    <TextBlock Text="Окремі файли PEM" Style="{StaticResource CardTitle}" />
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Необовʼязковий спосіб, лишений для сумісності. Папка з чотирма PEM-файлами: пакувальник бере два, розпакувальник інші два. Приватні ключі можна захистити паролем." />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBox Width="320" Padding="4,3"
+                                 Text="{Binding PemFolder, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Content="Огляд..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding BrowsePemFolderCommand}" />
+                        <TextBlock Text="Пароль" Style="{StaticResource RowLabel}" Margin="16,0,8,0" />
+                        <TextBox Width="130" Padding="4,3" Text="{Binding PemPassword}" />
+                        <Button Content="Використати" Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding UsePemCommand}" />
+                        <Button Content="Створити PEM..." Padding="12,5" Margin="8,0,0,0"
+                                Command="{Binding GeneratePemCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="2" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource BorderLineBrush}"
+                BorderThickness="0,1,0,0" Padding="12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
+                <ProgressBar Grid.Column="1" Width="200" Height="12" Margin="12,0,0,0"
+                             Maximum="100" Value="{Binding ProgressValue}"
+                             IsIndeterminate="{Binding IsProgressIndeterminate}"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
